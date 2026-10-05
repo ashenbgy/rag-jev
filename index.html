@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Library</title>
+<style>
+  :root {
+    --bg: #f3f4ef; --surface: #ffffff; --sunken: #eaede6;
+    --ink: #1d2823; --muted: #5b6a62; --line: #d9ded6;
+    --accent: #2c6a50; --accent-ink: #ffffff; --accent-soft: #e2efe7;
+    --warn: #9c4f22; --warn-soft: #f8eadf; --error: #b42318; --error-soft: #fdecea;
+    --serif: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+    --sans: var(--serif);
+    --radius: 12px; --shadow: 0 1px 2px rgb(20 40 30 / .06), 0 4px 16px rgb(20 40 30 / .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111614; --surface: #19201d; --sunken: #141a17;
+      --ink: #e5ebe7; --muted: #98a79f; --line: #2b3531;
+      --accent: #7cc6a2; --accent-ink: #0f1f17; --accent-soft: #1d3329;
+      --warn: #e7a37c; --warn-soft: #3a291f; --error: #f19a91; --error-soft: #3b1f1c;
+      --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 4px 16px rgb(0 0 0 / .25);
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+  main { max-width: 780px; margin: 0 auto; padding: 48px 16px 80px; display: grid; gap: 28px; }
+  button, input, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* header */
+  .eyebrow { margin: 0 0 10px; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  h1 { margin: 0 0 12px; font: 700 clamp(30px, 5.5vw, 42px)/1.15 var(--serif); text-wrap: balance; }
+  .lede { margin: 0; max-width: 60ch; font: 18px/1.55 var(--serif); color: var(--muted); }
+
+  /* library bar */
+  .library { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); transition: border-color .15s, background .15s; }
+  .library.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .count { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .count svg { color: var(--accent); }
+  .hint { font-size: 14px; color: var(--muted); }
+  .library .spacer { flex: 1; }
+  #upload-status { flex-basis: 100%; font-size: 14px; }
+  #upload-status:empty { display: none; }
+  #upload-status.ok { color: var(--accent); }
+  #upload-status.bad { color: var(--error); }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 10px; padding: 12px 22px; font-weight: 600; font-size: 15px; cursor: pointer; transition: background .15s, transform .05s; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { background: transparent; color: var(--accent); border-color: var(--accent); padding: 7px 14px; font-size: 14px; }
+  .btn-ghost:hover { background: var(--accent-soft); }
+  .btn:disabled { opacity: .55; cursor: progress; }
+
+  /* ask card */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+  .ask { display: grid; gap: 14px; }
+  .ask label.q { font-weight: 600; font-size: 17px; }
+  textarea { width: 100%; min-height: 96px; padding: 14px 16px; font-size: 17px; line-height: 1.5; border: 1px solid var(--line); border-radius: 10px; background: var(--sunken); resize: vertical; transition: border-color .15s, background .15s; }
+  textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .examples span { font-size: 14px; color: var(--muted); }
+  .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 14px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .options { display: flex; flex-wrap: wrap; gap: 12px 32px; padding: 14px 0; border-block: 1px solid var(--line); }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  .kbd { font-size: 13px; color: var(--muted); }
+
+  /* toggle switches */
+  .toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; position: relative; }
+  .toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .switch { width: 38px; height: 22px; border-radius: 999px; background: var(--line); position: relative; transition: background .15s; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / .25); transition: transform .15s; }
+  .toggle input:checked + .switch { background: var(--accent); }
+  .toggle input:checked + .switch::after { transform: translateX(16px); }
+  .toggle input:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .toggle small { display: block; font-size: 13px; color: var(--muted); line-height: 1.3; }
+
+  .privacy { margin: 0; font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start; }
+  .privacy svg { flex: none; margin-top: 2px; }
+
+  /* results */
+  #out { display: grid; gap: 22px; }
+  #out:empty { display: none; }
+  h2 { margin: 0 0 12px; font: 600 22px/1.3 var(--serif); }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  .badge.plain { background: var(--sunken); color: var(--muted); }
+
+  .claims { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .claims li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; font: 17px/1.6 var(--serif); }
+  .claims li svg { margin-top: 5px; color: var(--accent); }
+  .cite { display: inline-block; margin: 0 1px; padding: 0 6px; border: 0; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font: 600 13px/1.6 var(--sans); cursor: pointer; vertical-align: 1px; }
+  .cite:hover { background: var(--accent); color: var(--accent-ink); }
+  .support { font: 13px var(--sans); color: var(--muted); margin-left: 4px; white-space: nowrap; }
+
+  details.removed { border: 1px solid var(--line); border-radius: var(--radius); background: var(--warn-soft); padding: 14px 18px; }
+  details.removed summary { cursor: pointer; font-weight: 600; color: var(--warn); }
+  details.removed p { margin: 8px 0 12px; font-size: 14px; color: var(--muted); }
+  details.removed .claims li { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--warn); }
+  details.removed .claims li svg { color: var(--warn); }
+
+  .passages { display: grid; gap: 12px; }
+  .passage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; scroll-margin-top: 20px; transition: border-color .3s, box-shadow .3s; }
+  .passage.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .passage header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+  .num { display: inline-grid; place-items: center; min-width: 26px; height: 26px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 13px; }
+  .book { font: 600 15px var(--serif); flex: 1; min-width: 0; }
+  .meter { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .meter i { width: 64px; height: 6px; border-radius: 999px; background: var(--sunken); overflow: hidden; display: block; }
+  .meter b { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+  .passage .text { margin: 0; font: 15px/1.7 var(--serif); white-space: pre-wrap; }
+  .passage .text.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .more { margin-top: 6px; border: 0; background: none; padding: 0; color: var(--accent); font-size: 14px; font-weight: 600; cursor: pointer; }
+
+  /* states */
+  .loading { display: flex; align-items: center; gap: 14px; color: var(--muted); }
+  .spinner { width: 22px; height: 22px; border: 3px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 34px 22px; }
+  .empty h2 { margin-bottom: 6px; }
+  .empty p { margin: 0 auto 16px; max-width: 46ch; color: var(--muted); }
+  .alert { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: var(--radius); background: var(--error-soft); color: var(--error); }
+  .alert svg { flex: none; margin-top: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation-duration: 2s !important; } }
+  @media (max-width: 520px) { main { padding-top: 32px; } .card { padding: 18px; } .actions .btn-primary { width: 100%; } .kbd { display: none; } .hint { display: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Your reading library</p>
+    <h1>Ideas worth putting into practice.</h1>
+    <p class="lede">Explore habits, meaningful work, learning, and human psychology with the book passages behind each answer.</p>
+  </header>
+
+  <section class="library" id="library" aria-label="Your books">
+    <span class="count">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>
+      <span id="stats">{{stats}}</span>
+    </span>
+    <span class="spacer"></span>
+    <span class="hint">Drop PDF or TXT files here, or</span>
+    <button type="button" class="btn btn-ghost" id="add">Add books</button>
+    <input type="file" id="file" accept=".pdf,.txt" multiple hidden>
+    <span id="upload-status" role="status"></span>
+  </section>
+
+  <form class="card ask" id="f">
+    <label class="q" for="q">What would you like to explore?</label>
+    <textarea id="q" required placeholder="e.g. How can I create a deep work routine?"></textarea>
+    <div class="examples">
+      <span>Try:</span>
+      <button type="button" class="chip">How can I create a deep work routine?</button>
+      <button type="button" class="chip">How do I make a new habit stick?</button>
+      <button type="button" class="chip">What's the best way to learn a hard skill?</button>
+    </div>
+    <div class="options">
+      <label class="toggle"><input type="checkbox" id="write" checked><span class="switch"></span><span>Write an answer<small>Turn off to see passages only</small></span></label>
+      <label class="toggle"><input type="checkbox" id="jev" checked><span class="switch"></span><span>Use Jev checks<small>Picks passages, removes unsupported claims</small></span></label>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="go">Explore the books</button>
+      <span class="kbd">or press Ctrl + Enter</span>
+    </div>
+    <p class="privacy">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      <span>Jev checks send your question, selected passages, and draft claims to TypeSafe. Answer writing sends selected passages to your configured AI provider.</span>
+    </p>
+  </form>
+
+  <section id="out" aria-live="polite"></section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const pct = p => `${Math.round(p * 100)}%`;
+const icon = path => { const t = document.createElement("template"); t.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`; return t.content.firstChild; };
+const CHECK = '<path d="M20 6 9 17l-5-5"/>', CROSS = '<path d="M18 6 6 18M6 6l12 12"/>', ALERT = '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>';
+const out = $("out");
+
+/* ---------- empty library ---------- */
+if ($("stats").textContent.startsWith("0 ")) {
+  const card = el("div", "card empty");
+  card.append(el("h2", null, "Your library is empty"),
+              el("p", null, "Add a book as a PDF or TXT file to get started. Its text becomes searchable as soon as it uploads."));
+  const b = el("button", "btn btn-primary", "Add your first book");
+  b.type = "button"; b.onclick = () => $("file").click();
+  card.append(b);
+  out.replaceChildren(card);
+}
+
+/* ---------- uploads (button + drag and drop) ---------- */
+async function upload(files) {
+  const status = $("upload-status");
+  files = [...files].filter(f => /\.(pdf|txt)$/i.test(f.name));
+  if (!files.length) { status.className = "bad"; status.textContent = "Only PDF and TXT files can be added."; return; }
+  $("add").disabled = true;
+  let added = 0;
+  for (const [i, f] of files.entries()) {
+    status.className = "";
+    status.textContent = `Adding “${f.name}”${files.length > 1 ? ` (${i + 1} of ${files.length})` : ""}… large PDFs can take a moment.`;
+    try {
+      const res = await fetch("/upload", { method: "POST", headers: { "X-Filename": encodeURIComponent(f.name) }, body: f });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      $("stats").textContent = data.stats;
+      added++;
+    } catch (err) {
+      status.className = "bad"; status.textContent = `“${f.name}”: ${err.message}`;
+      $("add").disabled = false; return;
+    }
+  }
+  status.className = "ok";
+  status.textContent = added === 1 ? `Added “${files[0].name}”. You can ask about it now.` : `Added ${added} books. You can ask about them now.`;
+  $("add").disabled = false;
+  if (out.querySelector(".empty")) out.replaceChildren();
+}
+$("add").onclick = () => $("file").click();
+$("file").onchange = e => { upload(e.target.files); e.target.value = ""; };
+const lib = $("library");
+document.addEventListener("dragover", e => { e.preventDefault(); lib.classList.add("drag"); });
+document.addEventListener("dragleave", e => { if (!e.relatedTarget) lib.classList.remove("drag"); });
+document.addEventListener("drop", e => { e.preventDefault(); lib.classList.remove("drag"); if (e.dataTransfer.files.length) upload(e.dataTransfer.files); });
+
+/* ---------- asking ---------- */
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => { $("q").value = c.textContent; $("f").requestSubmit(); });
+$("q").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("f").requestSubmit(); });
+
+function claimItem(c, ico) {
+  const li = el("li");
+  li.append(icon(ico));
+  const span = el("span");
+  // turn "[2]" citations into buttons that jump to that passage
+  for (const part of c.text.split(/(\[\d+\])/)) {
+    const m = part.match(/^\[(\d+)\]$/);
+    if (!m) { span.append(part); continue; }
+    const b = el("button", "cite", m[1]);
+    b.type = "button"; b.title = `Show passage ${m[1]}`; b.setAttribute("aria-label", `Source ${m[1]}`);
+    b.onclick = () => { const p = $("p" + m[1]); if (!p) return; p.scrollIntoView({ behavior: "smooth", block: "center" }); p.classList.add("flash"); setTimeout(() => p.classList.remove("flash"), 1600); };
+    span.append(b);
+  }
+  if (c.support != null) span.append(el("span", "support", `· ${pct(c.support)} supported`));
+  li.append(span);
+  return li;
+}
+
+function render(data, usedJev) {
+  out.replaceChildren();
+  if (!data.passages.length) {
+    const card = el("div", "card empty");
+    card.append(el("h2", null, "No matching passages"), el("p", null, "None of your books seem to cover this. Try different words, or add a book on the topic."));
+    out.append(card); return;
+  }
+  if (data.claims.length) {
+    const card = el("section", "card");
+    const head = el("div", "section-head");
+    head.append(el("h2", null, "Answer"), el("span", usedJev ? "badge" : "badge plain", usedJev ? "✓ Checked by Jev" : "Not checked"));
+    const ul = el("ul", "claims");
+    data.claims.forEach(c => ul.append(claimItem(c, CHECK)));
+    card.append(head, ul);
+    out.append(card);
+  } else if (data.dropped.length) {
+    const a = el("div", "alert"); a.append(icon(ALERT), el("span", null, "Every claim in the draft answer was removed because the passages don't support it. The passages below may still help."));
+    out.append(a);
+  }
+  if (data.dropped.length) {
+    const d = el("details", "removed");
+    d.append(el("summary", null, `${data.dropped.length} claim${data.dropped.length > 1 ? "s" : ""} removed`),
+             el("p", null, "The AI wrote these, but Jev couldn't find support for them in the passages."));
+    const ul = el("ul", "claims");
+    data.dropped.forEach(c => ul.append(claimItem(c, CROSS)));
+    d.append(ul);
+    out.append(d);
+  }
+  const sec = el("section");
+  sec.append(el("h2", null, data.claims.length ? "Passages behind this answer" : "Relevant passages"));
+  const list = el("div", "passages");
+  data.passages.forEach((p, i) => {
+    const card = el("article", "passage"); card.id = "p" + (i + 1);
+    const h = el("header");
+    h.append(el("span", "num", i + 1), el("span", "book", p.book));
+    if (p.relevance != null) {
+      const m = el("span", "meter"); const bar = el("i"); const fill = el("b");
+      fill.style.width = pct(p.relevance); bar.append(fill);
+      m.append(bar, `${pct(p.relevance)} relevant`); h.append(m);
+    }
+    const text = el("p", "text clamp", p.text);
+    card.append(h, text);
+    if (p.text.length > 420) {
+      const more = el("button", "more", "Show full passage"); more.type = "button";
+      more.onclick = () => { const clamped = text.classList.toggle("clamp"); more.textContent = clamped ? "Show full passage" : "Show less"; };
+      card.append(more);
+    }
+    list.append(card);
+  });
+  sec.append(list);
+  out.append(sec);
+}
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = $("go"), write = $("write").checked, jev = $("jev").checked;
+  const steps = ["Searching your books…"];
+  if (jev) steps.push("Jev is picking the most relevant passages…");
+  if (write) steps.push("Writing an answer…");
+  if (write && jev) steps.push("Jev is checking each claim against the passages…");
+  const msg = el("span", null, steps[0]);
+  const box = el("div", "card loading"); box.append(el("span", "spinner"), msg);
+  out.replaceChildren(box);
+  let s = 0; const timer = setInterval(() => { if (s < steps.length - 1) msg.textContent = steps[++s]; }, 2500);
+  go.disabled = true; go.textContent = "Exploring…";
+  try {
+    const res = await fetch("/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: $("q").value, write, jev }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    render(data, jev);
+  } catch (err) {
+    const a = el("div", "alert"); a.append(icon(ALERT), el("span", null, `Something went wrong: ${err.message}. Check that your API keys are set in .env, then try again.`));
+    out.replaceChildren(a);
+  } finally { clearInterval(timer); go.disabled = false; go.textContent = "Explore the books"; }
+});
+</script>
+</body>
+</html>

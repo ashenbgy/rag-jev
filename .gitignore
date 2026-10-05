@@ -1,0 +1,11 @@
+# secrets
+.env
+
+# books are copyrighted; keep them local
+books/*
+!books/.gitkeep
+
+# python
+.venv/
+__pycache__/
+*.pyc
